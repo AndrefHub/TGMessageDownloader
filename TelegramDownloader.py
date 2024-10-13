@@ -15,6 +15,8 @@ from telethon import TelegramClient, events, connection
 import pathlib
 import logging
 import emoji
+import decord
+import PIL
 
 log_folder = "logs"
 # create_output_directories(log_folder)
@@ -106,6 +108,18 @@ def is_media_downloaded(message_id, *paths):
     return []
 
 
+def extract_frame(video_path, output_image_path, frame_number=0):
+    # Load the video with decord
+    video_reader = decord.VideoReader(video_path, ctx=decord.cpu(0))
+
+    # Get a specific frame (0 for the first frame)
+    frame = video_reader[frame_number]
+
+    # Convert frame to a PIL Image and save as JPEG
+    image = PIL.Image.fromarray(frame.asnumpy())
+    image.save(output_image_path)
+
+
 # Function to remove italic text but preserve hashtags
 def remove_italics(text):
     # Function to preserve hashtags within italics
@@ -152,6 +166,12 @@ def cleanup_text(text, hashtags=None):
 def cleanup_text_in_json(message, hashtags=None):
     message["text"] = cleanup_text(message["text"], hashtags)
     return message
+
+
+def change_filename_preserve_ext(new_name, old_path):
+    _, ext = os.path.splitext(old_path)
+    media_filename = f"{new_name}{ext}"
+    return media_filename
 
 
 #################### UTILS END
@@ -221,6 +241,7 @@ class MessageDownloader:
         "video_path",
         "hashtags",
         "start_date",
+        "dry",
     ]
 
     def __set_required_fields(self, **kwargs):
@@ -268,53 +289,71 @@ class MessageDownloader:
         ]
 
     # Проверка типа медиа (изображение или видео)
-    def get_media_path(self, message):
+    def get_media_type(self, message):
         if message.photo:
-            return self.image_path
+            return "image"
         elif message.video or (
             message.document and "video" in message.document.mime_type
         ):
+            return "video"
+        return None
+
+    def get_media_path_from_type(self, media_type):
+        if media_type == "image":
+            return self.image_path
+        if media_type == "video":
             return self.video_path
         return None
 
+    def __generate_preview_from_video(self, filename):
+        name, ext = os.path.splitext(filename)
+        preview_filename = f"{name}.jpg"
+        extract_frame(
+            f"{self.video_path}/{filename}", f"{self.image_path}/{preview_filename}"
+        )
+        return preview_filename
+
+    async def __process_media_to_download(self, message):
+        media_temp_path = await message.download_media()
+        if not media_temp_path:
+            logger.warn(f"Failed to download media for message {message.id}")
+            return ""
+        media_filename = change_filename_preserve_ext(message.id, media_temp_path)
+        # Определяем, является ли файл изображением или видео
+        media_type = self.get_media_type(message)
+        if media_type:
+            media_destination = os.path.join(
+                self.get_media_path_from_type(media_type), media_filename
+            )
+            try:
+                await asyncio.to_thread(shutil.move, media_temp_path, media_destination)
+                logger.info(f"Downloaded media to {media_destination}")
+
+            except Exception as e:
+                logger.warn(f"Failed to move media: {e}")
+            finally:
+                if os.path.exists(media_temp_path):
+                    os.remove(media_temp_path)
+        return media_filename
+
     async def _process_media(self, message):
         downloaded_media = is_media_downloaded(
-            message.id, self.image_path, self.video_path
+            message.id, self.video_path, self.image_path
         )
+
         if downloaded_media:
-            media_filename = downloaded_media[0].name
-            logger.info(f"Skipped downloading {media_filename}")
-            return {"filename": f"{media_filename}", "spoiler": message.media.spoiler}
-            # Media file is already downloaded before, return old file
-            # Proposal: Check if files were tampered with
+            filename = downloaded_media[0].name
+            logger.info(f"Skipped downloading {filename}")
+        else:
+            filename = await self.__process_media_to_download(message)
 
-        media = None
-        media_temp_path = await message.download_media()
-        if media_temp_path:
-            # Получаем расширение файла
-            _, ext = os.path.splitext(media_temp_path)
-            ext = ext.lstrip(".")  # Убираем точку
-            media_filename = f"{message.id}.{ext}"
+        media = {
+            "filename": filename,
+            "spoiler": message.media.spoiler,
+        }
+        if self.get_media_type(message) == "video":
+            media["preview"] = self.__generate_preview_from_video(filename)
 
-            # Определяем, является ли файл изображением или видео
-            media_path = self.get_media_path(message)
-            if media_path:
-                media_destination = os.path.join(media_path, media_filename)
-                try:
-                    await asyncio.to_thread(
-                        shutil.move, media_temp_path, media_destination
-                    )
-                    logger.info(f"Downloaded media to {media_destination}")
-                    media = {
-                        "filename": f"{media_filename}",
-                        "spoiler": message.media.spoiler,
-                    }
-
-                except Exception as e:
-                    logger.warn(f"Failed to move media: {e}")
-                finally:
-                    if os.path.exists(media_temp_path):
-                        os.remove(media_temp_path)
         return media
 
     async def _process_message(self, message):
@@ -420,7 +459,8 @@ class MessageDownloader:
 
     async def __send_one_message(self, converted_message: dict):
         self.parsed_messages.append(converted_message)
-        await send_to_api(self.url, converted_message)
+        if not self.dry:
+            await send_to_api(self.url, converted_message)
 
     def convert_message_to_json_generator(self, transform: callable):
         return lambda message: cleanup_text_in_json(transform(message), self.hashtags)

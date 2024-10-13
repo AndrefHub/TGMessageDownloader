@@ -52,17 +52,6 @@ def get_config_from_arguments(args):
     return None
 
 
-def overwrite_default_credentials(config: dict):
-    if config:
-        global api_id, api_hash, phone_number
-        api_values = {
-            key: config["API"].get(key)
-            for key in ("api_id", "api_hash", "phone_number")
-        }
-        if all(api_values.values()):
-            api_id, api_hash, phone_number = api_values.values()
-
-
 async def main():
     try:
         args = load_arguments()
@@ -73,7 +62,10 @@ async def main():
 
     channel = convert_to_number_if_possible(config.get("info", "channel"))
     md = MessageDownloader(
-        **config["tg"], **config["paths"], start_date=config["info"]["start_date"]
+        **config["tg"],
+        **config["paths"],
+        start_date=config["info"]["start_date"],
+        dry=args.dry,
     )
     await md.get_history(channel)
 

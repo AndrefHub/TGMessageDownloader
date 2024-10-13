@@ -1,5 +1,7 @@
 aiohttp==3.10.8
+decord==0.6.0
 emoji==2.14.0
+pillow==10.4.0
 pipdeptree==2.23.4
 python-socks==2.5.3
 Telethon==1.37.0
