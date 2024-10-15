@@ -1,8 +1,10 @@
 import argparse
 import configparser
 import asyncio
-from TelegramDownloader import MessageDownloader
+import logging
 
+from TelegramDownloader import MessageDownloader
+import tgutils
 
 def convert_to_number_if_possible(a, just_try=True):
     try:
@@ -51,19 +53,22 @@ def get_config_from_arguments(args):
         return load_config(args.config)
     return None
 
-
-def overwrite_default_credentials(config: dict):
-    if config:
-        global api_id, api_hash, phone_number
-        api_values = {
-            key: config["API"].get(key)
-            for key in ("api_id", "api_hash", "phone_number")
-        }
-        if all(api_values.values()):
-            api_id, api_hash, phone_number = api_values.values()
+def configure_logger(log_folder="logs"):
+    tgutils.create_output_directories(log_folder)
+    logging.basicConfig(
+        # filename=f"{log_folder}/telegram_dler.log",
+        level=logging.INFO,
+        format="%(asctime)s - %(name)-25s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(f"{log_folder}/telegram_dler.log"),
+            logging.StreamHandler(),
+        ],
+    )
+    logging.getLogger("telethon").setLevel(logging.WARNING)
 
 
 async def main():
+    configure_logger()
     try:
         args = load_arguments()
         config = get_config_from_arguments(args)
@@ -73,7 +78,10 @@ async def main():
 
     channel = convert_to_number_if_possible(config.get("info", "channel"))
     md = MessageDownloader(
-        **config["tg"], **config["paths"], start_date=config["info"]["start_date"]
+        **config["tg"],
+        **config["paths"],
+        start_date=config["info"]["start_date"],
+        dry=args.dry,
     )
     await md.get_new_messages(channel)
 

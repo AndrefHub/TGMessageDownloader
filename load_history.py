@@ -1,8 +1,10 @@
 import argparse
 import configparser
 import asyncio
-from TelegramDownloader import MessageDownloader
+import logging
 
+from TelegramDownloader import MessageDownloader
+import tgutils
 
 def convert_to_number_if_possible(a, just_try=True):
     try:
@@ -51,8 +53,22 @@ def get_config_from_arguments(args):
         return load_config(args.config)
     return None
 
+def configure_logger(log_folder="logs"):
+    tgutils.create_output_directories(log_folder)
+    logging.basicConfig(
+        # filename=f"{log_folder}/telegram_dler.log",
+        level=logging.INFO,
+        format="%(asctime)s - %(name)-25s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(f"{log_folder}/telegram_dler.log"),
+            logging.StreamHandler(),
+        ],
+    )
+    logging.getLogger("telethon").setLevel(logging.WARNING)
+
 
 async def main():
+    configure_logger()
     try:
         args = load_arguments()
         config = get_config_from_arguments(args)
