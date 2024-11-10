@@ -60,7 +60,7 @@ def configure_logger(log_folder="logs"):
         level=logging.INFO,
         format="%(asctime)s - %(name)-25s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler(f"{log_folder}/telegram_dler.log"),
+            logging.FileHandler(f"{log_folder}/telegram_load.log"),
             logging.StreamHandler(),
         ],
     )

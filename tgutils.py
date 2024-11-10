@@ -63,12 +63,13 @@ def convert_group_to_data(group):
 
 
 async def send_to_api(url, data):
+    origin = "https://topsmi.ru/"
     logger.debug(f"Sending {data} to {url}")
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.post(url, json=data) as response:
+            async with session.post(url, json=data, headers={'origin': origin}) as response:
                 if response.ok:
-                    logger.debug(f"Message successfully sent to Next.js API: {data}")
+                    logger.info(f"Message successfully sent to Next.js API: {data}")
                 else:
                     logger.warn(
                         f"Failed to send message: {response.status}, {await response.text()}"

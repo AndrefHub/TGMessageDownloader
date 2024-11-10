@@ -60,7 +60,7 @@ def configure_logger(log_folder="logs"):
         level=logging.INFO,
         format="%(asctime)s - %(name)-25s - %(levelname)s - %(message)s",
         handlers=[
-            logging.FileHandler(f"{log_folder}/telegram_dler.log"),
+            logging.FileHandler(f"{log_folder}/telegram_blm.log"),
             logging.StreamHandler(),
         ],
     )
@@ -83,7 +83,13 @@ async def main():
         start_date=config["info"]["start_date"],
         dry=args.dry,
     )
-    await md.get_new_messages(channel)
+    while True:
+        try:
+            await md.get_new_messages(channel)
+        except Exception:
+            logger.exception("message")
+        finally:
+            logger.info("Restarting BLM")
 
 
 if __name__ == "__main__":
