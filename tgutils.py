@@ -67,7 +67,9 @@ async def send_to_api(url, data):
     logger.debug(f"Sending {data} to {url}")
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.post(url, json=data, headers={'origin': origin}) as response:
+            async with session.post(
+                url, json=data, headers={"origin": origin}
+            ) as response:
                 if response.ok:
                     logger.info(f"Message successfully sent to Next.js API: {data}")
                 else:
@@ -76,6 +78,26 @@ async def send_to_api(url, data):
                     )
         except Exception as e:
             logger.warn(f"Error sending message to API: {e}. Data: {data}")
+
+
+async def delete_news(url, message_id):
+    origin = "https://topsmi.ru/"
+    logger.debug(f"Sending delete to {url} with {message_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.delete(
+                url, params={"messageId": message_id}, headers={"origin": origin}
+            ) as response:
+                if response.ok:
+                    logger.info(
+                        f"Deletion successfully sent to Next.js API: {message_id}"
+                    )
+                else:
+                    logger.warn(
+                        f"Failed to send message: {response.status}, {await response.text()}"
+                    )
+        except Exception as e:
+            logger.warn(f"Error sending message to API: {e}. Data: {message_id}")
 
 
 def is_media_downloaded(message_id, *paths):

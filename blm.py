@@ -6,6 +6,8 @@ import logging
 from TelegramDownloader import MessageDownloader
 import tgutils
 
+logger = logging.getLogger(__name__)
+
 def convert_to_number_if_possible(a, just_try=True):
     try:
         return int(a)

@@ -66,9 +66,19 @@ class MessageDownloader:
         self._set_fields(**kwargs)
         self.fetching_done = asyncio.Event()
 
+    async def __aenter__(self):
+        # Set up resources, e.g., open a connection
+        self.connection = await self.connect()
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        # Tear down resources, e.g., close connection
+        await self.close_connection()
+
     required_fields = ["api_id", "api_hash"]
     optional_fields = [
         "url",
+        "delete_url",
         "bot_token",
         "phone",
         "image_path",
@@ -286,11 +296,17 @@ class MessageDownloader:
         finally:
             self.fetching_done.set()
 
-    async def blm_event_handler(self, event):
+    async def blm_new_message_handler(self, event):
         logger.debug(event)
         if event.message:
             await self._process_message(event.message)
 
+    async def blm_delete_message_handler(self, event):
+        logger.info(event)
+        # add check for correct channel
+        for deleted_id in event.deleted_ids:
+            await tgutils.delete_news(self.delete_url, deleted_id)
+        
     async def __send_one_message(self, converted_message: dict):
         self.parsed_messages.append(converted_message)
         if not self.dry:
@@ -385,7 +401,10 @@ class MessageDownloader:
         # await client(JoinChannelRequest(channel))
 
         client.add_event_handler(
-            self.blm_event_handler, events.NewMessage(chats=channel)
+            self.blm_new_message_handler, events.NewMessage(chats=channel)
+        )
+        client.add_event_handler(
+            self.blm_delete_message_handler, events.MessageDeleted()
         )
         logger.info("`get_new_messages()` session started and user authorized.")
         task = asyncio.create_task(self.send_messages())
