@@ -127,13 +127,13 @@ def preserve_hashtags(match):
 
 # Function to remove italic text but preserve hashtags
 def remove_italics(text):
-    # Substitute italic text while preserving hashtags
     return re.sub(r"__.*?__", preserve_hashtags, text, flags=re.DOTALL)
 
 
-# Function to remove bold text but preserve hashtags
 def remove_bold(text):
-    return re.sub(r"\*\*.*?\*\*", preserve_hashtags, text, flags=re.DOTALL)
+    # Use a regular expression to remove double asterisks used for bold formatting
+    # return re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    return text.replace("**", "")
 
 
 # Function to remove emojis
