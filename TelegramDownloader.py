@@ -162,7 +162,9 @@ class MessageDownloader:
         if not media_temp_path:
             logger.warn(f"Failed to download media for message {message.id}")
             return ""
-        media_filename = tgutils.change_filename_preserve_ext(message.id, media_temp_path)
+        media_filename = tgutils.change_filename_preserve_ext(
+            message.id, media_temp_path
+        )
         # Определяем, является ли файл изображением или видео
         media_type = self.get_media_type(message)
         if media_type:
@@ -178,6 +180,7 @@ class MessageDownloader:
             finally:
                 if os.path.exists(media_temp_path):
                     os.remove(media_temp_path)
+
         return media_filename
 
     async def _process_media(self, message):
@@ -193,7 +196,7 @@ class MessageDownloader:
 
         media = {
             "filename": filename,
-            "spoiler": message.media.spoiler,
+            "spoiler": getattr(message.media, 'spoiler', False),
         }
         if self.get_media_type(message) == "video":
             media["preview"] = self.__generate_preview_from_video(filename)
@@ -306,14 +309,17 @@ class MessageDownloader:
         # add check for correct channel
         for deleted_id in event.deleted_ids:
             await tgutils.delete_news(self.delete_url, deleted_id)
-        
+
     async def __send_one_message(self, converted_message: dict):
         self.parsed_messages.append(converted_message)
         if not self.dry:
             await tgutils.send_to_api(self.url, converted_message)
+        
 
     def convert_message_to_json_generator(self, transform: callable):
-        return lambda message: tgutils.cleanup_text_in_json(transform(message), self.hashtags)
+        return lambda message: tgutils.cleanup_text_in_json(
+            transform(message), self.hashtags
+        )
 
     async def __send_prepared_messages(
         self, messages: dict, condition: callable, transform: callable

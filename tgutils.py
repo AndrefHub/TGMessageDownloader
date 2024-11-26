@@ -44,7 +44,7 @@ def convert_message_to_data(message):
     return {
         "groupID": message.group_id or message.id,
         "date": message.date,
-        "text": cleanup_text(message.text) or "",
+        "text": message.text or "",
         "media": [message.media],
     }
 
@@ -55,9 +55,7 @@ def convert_group_to_data(group):
         "date": next(
             message.date for message in group if message.date
         ),  # get first available date if first message don't have one
-        "text": cleanup_text(
-            next((message.text for message in group if message.text), "")
-        ),
+        "text": next((message.text for message in group if message.text), ""),
         "media": [message.media for message in group if message.media],
     }
 
@@ -74,7 +72,7 @@ async def send_to_api(url, data):
                     logger.info(f"Message successfully sent to Next.js API: {data}")
                 else:
                     logger.warn(
-                        f"Failed to send message: {response.status}, {await response.text()}"
+                        f"Failed to send message '{data}': {response.status}, {await response.text()}"
                     )
         except Exception as e:
             logger.warn(f"Error sending message to API: {e}. Data: {data}")
@@ -120,16 +118,22 @@ def extract_frame(video_path, output_image_path, frame_number=0):
     image.save(output_image_path)
 
 
+# Function to preserve hashtags within markdown
+def preserve_hashtags(match):
+    content = match.group(0)  # Get the full matched text
+    hashtags = re.findall(r"#\w+", content)  # Find hashtags inside the matched text
+    return " ".join(hashtags)  # Return only the hashtags
+
+
 # Function to remove italic text but preserve hashtags
 def remove_italics(text):
-    # Function to preserve hashtags within italics
-    def preserve_hashtags(match):
-        content = match.group(0)  # Get the full matched text, including underscores
-        hashtags = re.findall(r"#\w+", content)  # Find hashtags inside the italics
-        return " ".join(hashtags)  # Return only the hashtags
-
     # Substitute italic text while preserving hashtags
     return re.sub(r"__.*?__", preserve_hashtags, text, flags=re.DOTALL)
+
+
+# Function to remove bold text but preserve hashtags
+def remove_bold(text):
+    return re.sub(r"\*\*.*?\*\*", preserve_hashtags, text, flags=re.DOTALL)
 
 
 # Function to remove emojis
@@ -154,7 +158,8 @@ def remove_after_last_valid_hashtag(text, hashtags):
 # Main function to clean up the text using all three steps
 def cleanup_text(text, hashtags=None):
     # valid_hashtags = get_valid_hashtags(text, hashtags)
-    text = remove_italics(text)  # Remove italic text
+    text = remove_italics(text) # Remove italic text
+    text = remove_bold(text)    # Remove bold text
     text = remove_emojis(text)  # Remove emojis
     if hashtags:
         text = remove_after_last_valid_hashtag(text, hashtags)
