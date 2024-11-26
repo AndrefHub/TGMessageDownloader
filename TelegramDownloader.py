@@ -193,6 +193,8 @@ class MessageDownloader:
             logger.info(f"Skipped downloading {filename}")
         else:
             filename = await self.__process_media_to_download(message)
+            if not filename:
+                return None
 
         media = {
             "filename": filename,
@@ -381,7 +383,7 @@ class MessageDownloader:
         tgutils.create_output_directories(self.image_path, self.video_path)
 
         client = await TelegramClient(
-            f"load_session_{self.api_id}",
+            f"/var/www/TGMessageDownloader/load_session_{self.api_id}", # can't be arsed to fix that
             self.api_id,
             self.api_hash,
         ).start(self.phone)
