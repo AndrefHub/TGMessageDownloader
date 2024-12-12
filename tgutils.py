@@ -65,7 +65,7 @@ async def send_to_api(url, data):
     logger.debug(f"Sending {data} to {url}")
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.post(
+            async with session.put(
                 url, json=data, headers={"origin": origin}
             ) as response:
                 if response.ok:

@@ -116,7 +116,7 @@ class MessageDownloader:
 
         self.latest_group_id = None
 
-        self.url = "example.com/api/post"
+        self.url = "example.com/api/message"
         self.image_path = "media/images"
         self.video_path = "media/videos"
         self.hashtags = [
@@ -224,7 +224,7 @@ class MessageDownloader:
         await asyncio.sleep(1)
 
         if group_id and group_id in self.ignored_group_ids:
-            logger.info(f"GroupID {group_id} is likely an ad post.")
+            logger.info(f"GroupID {group_id} is likely an ad message.")
             return
 
         message_date = message.date
@@ -301,8 +301,36 @@ class MessageDownloader:
         finally:
             self.fetching_done.set()
 
+
+    async def _process_media_messages_in_group(self, client, original_message, max_amp=10):
+        """
+        Searches for Telegram messages that are part of the same group of uploads
+        The search is conducted around the id of the original message with an amplitude
+        of `max_amp` both ways
+        Runs a list of [tasks] where each message has media and is in the same grouped_id
+        """
+        tasks = []
+
+        if original_message.grouped_id is None:
+            task = asyncio.create_task(self._process_message(original_message))
+            tasks.append(task)
+        else:
+            search_ids = [i for i in range(original_message.id - max_amp, original_message.id + max_amp + 1)]
+            messages = await client.get_messages(
+                original_message.peer_id.channel_id, 
+                ids=search_ids
+            )
+            for message in messages:
+                if message is not None and message.grouped_id == original_message.grouped_id and message.media is not None:
+                    task = asyncio.create_task(self._process_message(message))
+                    tasks.append(task)
+        
+        if tasks:
+            await asyncio.gather(*tasks)
+        # return tasks
+
     async def blm_new_message_handler(self, event):
-        logger.debug(event)
+        logger.info(event)
         if event.message:
             await self._process_message(event.message)
 
@@ -311,6 +339,15 @@ class MessageDownloader:
         # add check for correct channel
         for deleted_id in event.deleted_ids:
             await tgutils.delete_news(self.delete_url, deleted_id)
+
+    async def blm_edit_message_handler(self, event):
+        logger.info(event)
+        await self._process_media_messages_in_group(
+            self.client, 
+            event.message
+        )
+        # for deleted_id in event.deleted_ids:
+        #     await tgutils.delete_news(self.delete_url, deleted_id)
 
     async def __send_one_message(self, converted_message: dict):
         self.parsed_messages.append(converted_message)
@@ -406,6 +443,8 @@ class MessageDownloader:
             self.api_hash,
         ).start(bot_token=self.bot_token)
 
+        self.client = client
+
         # await client(JoinChannelRequest(channel))
 
         client.add_event_handler(
@@ -413,6 +452,9 @@ class MessageDownloader:
         )
         client.add_event_handler(
             self.blm_delete_message_handler, events.MessageDeleted()
+        )
+        client.add_event_handler(
+            self.blm_edit_message_handler, events.MessageEdited()
         )
         logger.info("`get_new_messages()` session started and user authorized.")
         task = asyncio.create_task(self.send_messages())
