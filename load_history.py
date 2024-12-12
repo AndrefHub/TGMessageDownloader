@@ -43,7 +43,9 @@ def load_arguments():
 
 
 def load_config(filename):
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(
+        interpolation=configparser.ExtendedInterpolation()
+    )
     config.read(filename)
     return config
 
