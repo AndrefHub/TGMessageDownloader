@@ -127,7 +127,8 @@ def preserve_hashtags(match):
 
 # Function to remove italic text but preserve hashtags
 def remove_italics(text):
-    return re.sub(r"__.*?__", preserve_hashtags, text, flags=re.DOTALL)
+    # return re.sub(r"__.*?__", preserve_hashtags, text, flags=re.DOTALL)
+    return text.replace("__", "")
 
 
 def remove_bold(text):
@@ -154,6 +155,21 @@ def remove_after_last_valid_hashtag(text, hashtags):
         text = text[: last_valid_hashtag_position + len(hashtags[index])]
     return text
 
+# Function to remove all text after the first valid hashtag
+# while preserving all hashtags
+def remove_after_first_valid_hashtag(text, hashtags):
+    text_hashtags = []
+    first_valid_hashtag_position = len(text)
+    for hashtag in hashtags:
+        position = text.rfind(hashtag)
+        if position != -1:
+            text_hashtags.append(hashtag)
+            if position < first_valid_hashtag_position:
+                first_valid_hashtag_position = position
+    if first_valid_hashtag_position != len(text):
+        text = text[:first_valid_hashtag_position] + " ".join(text_hashtags)
+    return text
+
 
 # Main function to clean up the text using all three steps
 def cleanup_text(text, hashtags=None):
@@ -162,7 +178,7 @@ def cleanup_text(text, hashtags=None):
     text = remove_bold(text)    # Remove bold text
     text = remove_emojis(text)  # Remove emojis
     if hashtags:
-        text = remove_after_last_valid_hashtag(text, hashtags)
+        text = remove_after_first_valid_hashtag(text, hashtags)
     text = text.strip()
     # for hashtag
     return text
