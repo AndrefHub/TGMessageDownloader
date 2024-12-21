@@ -193,3 +193,30 @@ def change_filename_preserve_ext(new_name, old_path):
     _, ext = os.path.splitext(old_path)
     media_filename = f"{new_name}{ext}"
     return media_filename
+
+def compress_thumbnail(image_path, dest_dir, quality=50, width=300):
+    img = PIL.Image.open(image_path)
+    height = int((width / img.size[0]) * img.size[1])
+    img = img.resize((width, height), resample=PIL.Image.LANCZOS)
+    filename = os.path.splitext(os.path.basename(image_path))[0]
+    new_filename = os.path.join(dest_dir, f"{filename}.webp")
+    try:
+        img.save(new_filename, quality=quality, optimize=True)
+    except OSError:
+        img = img.convert("RGB")
+        img.save(new_filename, quality=quality, optimize=True)
+    finally:
+        img.close()
+
+def compress_image(image_path, dest_dir, ratio=0.5, quality=50):
+    img = PIL.Image.open(image_path)
+    img = img.resize((int(img.size[0]*ratio), int(img.size[1]*ratio)), resample=PIL.Image.LANCZOS)
+    filename = os.path.splitext(os.path.basename(image_path))[0]
+    new_filename = os.path.join(dest_dir, f"{filename}.webp")
+    try:
+        img.save(new_filename, quality=quality, optimize=True)
+    except OSError:
+        img = img.convert("RGB")
+        img.save(new_filename, quality=quality, optimize=True)
+    finally:
+        img.close()
