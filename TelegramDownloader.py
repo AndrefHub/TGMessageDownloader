@@ -5,6 +5,7 @@ import shutil
 from datetime import datetime
 from telethon import TelegramClient, events
 import logging
+from PIL import Image
 
 import tgutils
 
@@ -83,6 +84,8 @@ class MessageDownloader:
         "phone",
         "image_path",
         "video_path",
+        "thumbnail_path",
+        "fastimage_path",
         "hashtags",
         "start_date",
         "dry",
@@ -149,13 +152,20 @@ class MessageDownloader:
         if media_type == "video":
             return self.video_path
         return None
+    
+    def __generate_compressed_images(self, filename):
+        image_path = os.path.join(self.image_path, filename)
+        tgutils.compress_image(image_path, self.fastimage_path)
+        tgutils.compress_thumbnail(image_path, self.thumbnail_path)
 
     def __generate_preview_from_video(self, filename):
         name, ext = os.path.splitext(filename)
         preview_filename = f"{name}.jpg"
         tgutils.extract_frame(
-            f"{self.video_path}/{filename}", f"{self.image_path}/{preview_filename}"
+            os.path.join(self.video_path, filename),
+            os.path.join(self.image_path, preview_filename)
         )
+        self.__generate_compressed_images(preview_filename)
         return preview_filename
 
     async def __process_media_to_download(self, message):
@@ -203,6 +213,9 @@ class MessageDownloader:
         }
         if self.get_media_type(message) == "video":
             media["preview"] = self.__generate_preview_from_video(filename)
+            self.__generate_compressed_images(media["preview"])
+        else:
+            self.__generate_compressed_images(media["filename"])
 
         return media
 
@@ -410,10 +423,13 @@ class MessageDownloader:
 
     async def get_history(self, channel):
         # required_fields = ['api_id', 'api_hash', 'phone']
-        tgutils.create_output_directories(self.image_path, self.video_path)
+        tgutils.create_output_directories(
+            self.image_path, self.video_path, self.fastimage_path, self.thumbnail_path
+        )
 
         client = await TelegramClient(
-            f"/var/www/TGMessageDownloader/load_session_{self.api_id}", # can't be arsed to fix that
+            f"load_session_{self.api_id}", # can't be arsed to fix that
+            # f"/var/www/TGMessageDownloader/load_session_{self.api_id}", # can't be arsed to fix that
             self.api_id,
             self.api_hash,
         ).start(self.phone)
