@@ -5,7 +5,6 @@ import shutil
 from datetime import datetime
 from telethon import TelegramClient, events
 import logging
-from PIL import Image
 
 import tgutils
 
@@ -155,12 +154,28 @@ class MessageDownloader:
     
     def __generate_compressed_images(self, filename):
         image_path = os.path.join(self.image_path, filename)
-        tgutils.compress_image(image_path, self.fastimage_path)
-        tgutils.compress_thumbnail(image_path, self.thumbnail_path)
+        tgutils.compress_image(
+            image_path, 
+            tgutils.generate_new_file_path(self.fastimage_path, filename)
+        )
+        tgutils.compress_thumbnail(
+            image_path, 
+            tgutils.generate_new_file_path(self.thumbnail_path, filename)
+        )
+
+
+    def __convert_image_to_webp(self, image_path, message_id):
+        return tgutils.compress_image(
+            image_path, 
+            tgutils.generate_new_file_path(self.image_path, str(message_id)), 
+            ratio=1,
+            quality=80
+        )
+
 
     def __generate_preview_from_video(self, filename):
         name, ext = os.path.splitext(filename)
-        preview_filename = f"{name}.jpg"
+        preview_filename = f"{name}.webp"
         tgutils.extract_frame(
             os.path.join(self.video_path, filename),
             os.path.join(self.image_path, preview_filename)
@@ -171,28 +186,42 @@ class MessageDownloader:
     async def __process_media_to_download(self, message):
         media_temp_path = await message.download_media()
         if not media_temp_path:
-            logger.warn(f"Failed to download media for message {message.id}")
+            logger.warning(f"Failed to download media for message {message.id}")
             return ""
+        
         media_filename = tgutils.change_filename_preserve_ext(
             message.id, media_temp_path
         )
-        # Определяем, является ли файл изображением или видео
+        # Determine the type of media (image or video)
         media_type = self.get_media_type(message)
-        if media_type:
+        
+        if media_type == "image":
+            # Process image differently
+            try:
+                # Convert image to webp
+                webp_path = self.__convert_image_to_webp(media_temp_path, message.id)
+                media_filename = os.path.basename(webp_path)
+                logger.info(f"Converted and moved image to {webp_path}")
+            except Exception as e:
+                logger.warning(f"Failed to convert image to webp: {e}")
+            finally:
+                if os.path.exists(media_temp_path):
+                    os.remove(media_temp_path)
+        elif media_type:
+            # Handle other media types
             media_destination = os.path.join(
                 self.get_media_path_from_type(media_type), media_filename
             )
             try:
                 await asyncio.to_thread(shutil.move, media_temp_path, media_destination)
                 logger.info(f"Downloaded media to {media_destination}")
-
             except Exception as e:
-                logger.warn(f"Failed to move media: {e}")
+                logger.warning(f"Failed to move media: {e}")
             finally:
                 if os.path.exists(media_temp_path):
                     os.remove(media_temp_path)
 
-        return media_filename
+        return media_filename   
 
     async def _process_media(self, message):
         downloaded_media = tgutils.is_media_downloaded(

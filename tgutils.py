@@ -194,29 +194,47 @@ def change_filename_preserve_ext(new_name, old_path):
     media_filename = f"{new_name}{ext}"
     return media_filename
 
-def compress_thumbnail(image_path, dest_dir, quality=50, width=300):
+
+def generate_new_file_path(dest_dir, filename, new_extension="webp"):
+    """Generate a new file path by combining directory, filename, and new extension."""
+    filename_without_ext = os.path.splitext(os.path.basename(filename))[0]
+    return os.path.join(dest_dir, f"{filename_without_ext}.{new_extension}")
+
+
+def compress_thumbnail(image_path, new_file_path, quality=50, width=300):
+    """Compress an image as a thumbnail and save it with the given new file path."""
     img = PIL.Image.open(image_path)
     height = int((width / img.size[0]) * img.size[1])
     img = img.resize((width, height), resample=PIL.Image.LANCZOS)
-    filename = os.path.splitext(os.path.basename(image_path))[0]
-    new_filename = os.path.join(dest_dir, f"{filename}.webp")
+
+    # Change the extension to .webp in the new file path
+    new_file_path = os.path.splitext(new_file_path)[0] + ".webp"
+
     try:
-        img.save(new_filename, quality=quality, optimize=True)
+        img.save(new_file_path, quality=quality, optimize=True)
     except OSError:
         img = img.convert("RGB")
-        img.save(new_filename, quality=quality, optimize=True)
+        img.save(new_file_path, quality=quality, optimize=True)
     finally:
         img.close()
 
-def compress_image(image_path, dest_dir, ratio=0.5, quality=50):
+    return new_file_path
+
+
+def compress_image(image_path, new_file_path, ratio=0.5, quality=50):
+    """Compress an image by scaling it and save it with the given new file path."""
     img = PIL.Image.open(image_path)
-    img = img.resize((int(img.size[0]*ratio), int(img.size[1]*ratio)), resample=PIL.Image.LANCZOS)
-    filename = os.path.splitext(os.path.basename(image_path))[0]
-    new_filename = os.path.join(dest_dir, f"{filename}.webp")
+    img = img.resize((int(img.size[0] * ratio), int(img.size[1] * ratio)), resample=PIL.Image.LANCZOS)
+
+    # Change the extension to .webp in the new file path
+    new_file_path = os.path.splitext(new_file_path)[0] + ".webp"
+
     try:
-        img.save(new_filename, quality=quality, optimize=True)
+        img.save(new_file_path, quality=quality, optimize=True)
     except OSError:
         img = img.convert("RGB")
-        img.save(new_filename, quality=quality, optimize=True)
+        img.save(new_file_path, quality=quality, optimize=True)
     finally:
         img.close()
+
+    return new_file_path

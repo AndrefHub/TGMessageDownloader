@@ -1,16 +1,8 @@
 import subprocess
 import os
 import time
-
-
-cities = [
-    {
-        "city": "city_name",
-        "port": "3000",
-        "channel_id": "-100123456789",
-        "bot_token": "bot_token",
-    },
-]
+from credentials import api_id, api_hash, phone
+from cities import cities
 
 
 # Define base path for configuration directories
@@ -21,10 +13,6 @@ base_config_path = "./conf.d/"
 service_path = "/etc/systemd/system/"
 # service_path = "./system/" # use for tests/checks
 
-# substitute 3 variables below for real values
-api_id = "api_id"
-api_hash = "api_hash"
-phone = "phone"
 
 # Templates
 config_template = """[tg]
@@ -37,8 +25,11 @@ bot_token = {BOT_TOKEN}
 url = http://localhost:{PORT}
 create_url = ${{url}}/api/news/update
 delete_url = ${{url}}/api/news/deleteByTGID
-image_path = /var/www/media/{CITY}/images
-video_path = /var/www/media/{CITY}/videos
+media_path = /var/www/media/{CITY}
+image_path = ${{media_path}}/images
+video_path = ${{media_path}}/videos
+thumbnail_path = ${{media_path}}/thumbnails
+fastimage_path = ${{media_path}}/fastimages
 
 [info]
 channel = {CHANNEL_ID}
