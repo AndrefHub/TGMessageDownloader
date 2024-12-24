@@ -37,12 +37,12 @@ start_date = 2024-12-01
 ; start_date = 2024-08-26
 """
 
-service_template = """[Unit]
-Description=BLM for {CITY}
+service_template = f"""[Unit]
+Description=BLM for {{CITY}}
 
 [Service]
-ExecStart=/var/www/TGMessageDownloader/env/bin/python /var/www/TGMessageDownloader/blm.py --config config.ini
-WorkingDirectory=/var/www/TGMessageDownloader/conf.d/{CITY}
+ExecStart={root_path}/env/bin/python {root_path}/blm.py --config config.ini
+WorkingDirectory={root_path}/conf.d/{{CITY}}
 Restart=always
 OOMScoreAdjust=-1000
 
@@ -96,7 +96,7 @@ def create_configs():
 
 def run_daemons():
     cmd = [
-        "/var/www/TGMessageDownloader/env/bin/python",  # Path to the Python executable in your virtual environment
+        "{root_path}/env/bin/python",  # Path to the Python executable in your virtual environment
         script_path,  # Path to the load_history.py script
         "--config",
         "config.ini",  # Passing the config file as an argument
@@ -124,5 +124,5 @@ def run_daemons():
 # Run the function
 if __name__ == "__main__":
     create_configs()
-    # run_daemons()
+    run_daemons()
 
