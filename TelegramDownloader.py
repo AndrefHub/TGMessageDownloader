@@ -30,7 +30,8 @@ class InternalMessage:
                 setattr(self, field, kwargs[field])
             else:
                 raise TypeError(f"Missing required argument: '{field}'")
-
+        
+        self.created_at = time.time() # For resolving multiple media with the same id 
         for field in InternalMessage.optional_fields:
             if field in kwargs:
                 setattr(self, field, kwargs[field])

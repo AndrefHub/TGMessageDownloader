@@ -50,13 +50,17 @@ def convert_message_to_data(message):
 
 
 def convert_group_to_data(group):
+    unique_messages = {}
+    for message in sorted(group, key=lambda message: message.created_at):
+        unique_messages[message.id] = message
+    unique_group = list(unique_messages.values())
     return {
-        "groupID": group[0].group_id,
+        "groupID": unique_group[0].group_id,
         "date": next(
-            message.date for message in group if message.date
+            message.date for message in unique_group if message.date
         ),  # get first available date if first message don't have one
-        "text": next((message.text for message in group if message.text), ""),
-        "media": [message.media for message in group if message.media],
+        "text": next((message.text for message in unique_group if message.text), ""),
+        "media": [message.media for message in unique_group if message.media],
     }
 
 
